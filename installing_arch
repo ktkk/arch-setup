@@ -1,0 +1,164 @@
+#	   _          _      ___         _        _ _   _____     _           _      _
+#	  /_\  _ _ __| |_   |_ _|_ _  __| |_ __ _| | | |_   _|  _| |_ ___ _ _(_)__ _| |
+#	 / _ \| '_/ _| ' \   | || ' \(_-<  _/ _` | | |   | || || |  _/ _ \ '_| / _` | |
+#	/_/ \_\_| \__|_||_| |___|_||_/__/\__\__,_|_|_|   |_| \_,_|\__\___/_| |_\__,_|_|
+#	By KatKak: https://github.com/ktkk
+#
+#	IMPORTANT: This is purely designed for my personal use and is probably (definitely) flawed in many ways
+#
+#	WARNING: This is not a script
+
+
+# Get the ISO from https://www.archlinux.org/download/
+# You could verify the signature but who cares
+
+# Boot into live environment
+# Let systemd do it's thing
+
+# PART 1, THE LIVE ENVIRONMENT
+
+# If you're using a US keyboard, skip this step:
+# List available keyboard with
+ls /usr/share/kbd/kemaps/**/*.map.gz
+# Set layout with
+loadkeys [insert layout here]
+
+# Verify the boot mode
+ls /sys/firmware/efi/efivars
+# If the directory does not exist, the system can be booted in Legacy BIOS mode
+
+# Connect to the internet
+# If using ethernet, this should just work automatically
+ping archlinux.org -c 4
+# If using wifi, check out this https://wiki.archlinux.org/index.php/Network_configuration/Wireless
+# Or just plug your laptop in to ethernet and do this shit later
+
+# update the system clock
+timedatectl status
+timedatectl set-ntp true
+
+# Partition the drive
+# DO NOT OVERWRITE YOUR WINDOWS INSTALL YOU DUMMY (if dual booting)
+# To list drives
+lsblk
+# To partition the drive
+cfdisk /dev/sdX
+# In Legacy BIOS mode:
+# /dev/sdX1 = Linux
+# /dev/sdX2 = Linux swap/Solaris
+# In UEFI mode:
+# /dev/sdX1 = EFI System partition
+# /dev/sdX2 = Linux
+# /dev/sdX3 = Linux swap/Solaris
+
+# Format the newly created partitions
+mkfs.ext4 /dev/sdX1
+
+mkswap /dev/sdX2 #(or /dev/sdX3 in cade of UEFI)
+swapon /dev/sdX2 #(...)
+
+# Mount the file system to to /mnt
+mount /dev/sdX1 /mnt
+# If dual booting Windows, mount the Windows partition to /mnt/win
+mount /dev/[windows drive/partition] /mnt/win
+# Recheck this step online because I keep messing it up
+
+# Edit the pacman mirrorlist by putting the closest region at the top of the file for faster downloads
+vim /etc/pacman.d/mirrorlist
+
+# Install the system
+# Don't forget to also install a text editor to edit config files while chrooted
+# I'll also go ahead and install dhcpcd for networking and git for accessing github
+pacstrap /mnt base linux linux-firmware base-devel vim git dhcpcd
+
+# Generate the file system table
+genfstab -U /mnt >> /mnt/etc/fstab
+# Check the fs table for errors
+cat /mnt/etc/fstab
+
+# Chroot in to the new system
+arch-chroot /mnt
+
+# PART 2, THE NEW SYSTEM
+
+# Set the time zone by creating a symlink
+ln -sf /usr/share/zoneinfo/[Region]/[City] /etc/localtime
+# Sync the harware clock
+hwclock --systohc
+
+# Set the locales
+# Edit /etc/locale.gen and uncomment the needed locales (mainly en_US.UTF-8 UTF-8)
+vim /etc/locale.gen
+locale-gen
+# Create the locale config file
+echo "LANG=en_US.UTF-8" > /etc/locale.conf
+cat /etc/locale.conf
+# Set the keyboard layout if necessary
+echo "KEYMAP=[keyboard layout]" > /etc/vconsole.conf
+cat /etc/vconsole.conf
+
+# Set the hostname (user@HOSTNAME $)
+echo "[hostname]" > /etc/hostname
+vim /etc/hosts
+# Add following lines to /etc/hosts
+# 127.0.0.1	localhost
+# ::1		localhost
+# 127.0.1.1	[hostname].localdomain [hostname]
+# Replace 127.0.1.1 with the permanent IP if using a permanent IP
+
+# When using RAID. LVM or system encryption, create a new initramfs
+mkinitcpio -P
+
+# Create a root password
+passwd
+
+# Create a user account
+useradd -m [username]
+# give the user account a password
+passwd [username]
+# Add user to important groups
+usermod -aG wheel,audio,video,optical,storage [username]
+# Install sudo and edit the sudoers file to allow the wheel group to use sudo
+pacman -S sudo
+visudo
+# To add the default user directories specified by the XDG Base Directory specifications
+pacman -S xdg-user-dirs
+xdg-user-dirs-update
+
+# Set up dhcpcd so that internet access is available on reboot
+systemctl enable dhcpcd
+
+# Install grub as a bootloader
+# In case of using a Macintosh machine, rEFInd is apparently an option
+pacman -S grub
+grub-install /dev/sdX
+grub-mkconfig -o /boot/grub/grub.cfg
+
+# shut down the system and remove the install media
+exit
+shutdown now
+
+# PART 3, AFTER INSTALLATION (optional, kinda but not really)
+
+# Log in to the new system using the previously created user account
+
+# Install yay as an AUR helper
+git clone https://aur.archlinux.org/yay.git
+cd yay
+makepkg -si
+
+# Install a graphical environment
+sudo pacman -S xorg lightdm lightdm-gtk-greeter [desktop environment/window manager of choice + additional configuration programs]
+sudo systemctl enable lightdm
+
+# Install additional programs of choice (eg. terminal emulator, file browser and web browser)
+sudo pacman -S rxvt-unicode pcmanfm firefox neofetch feh zathura scrot
+
+# Install display drivers if needed (looking at you, nvidia)
+sudo pacman -S nvidia
+
+# Reboot
+reboot
+# Systemd should automatically start the xorg server
+
+# Enjoy the new glorious Arch Linux (btw) system
