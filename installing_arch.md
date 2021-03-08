@@ -8,6 +8,9 @@ Get the ISO from https://www.archlinux.org/download/
 
 Boot into live environment.
 Let systemd do it's thing.
+Wait for the Arch live environment zsh shell.
+
+Optionally check the gpg key if you suspect a fishy link.
 
 ## PART 1, THE LIVE ENVIRONMENT
 
@@ -49,6 +52,9 @@ To partition the drive:
 ```console
 # cfdisk /dev/sdX
 ```
+Where X is the drive letter (check with `# lsblk`).
+Make sure to use `dos` as the partition label.
+
 | Legacy BIOS mode | In UEFI mode: |
 | :------------------------------ | :------------------------------ |
 | `/dev/sdX1` = Linux | `/dev/sdX1` = EFI System partition |
@@ -72,11 +78,7 @@ If dual booting Windows, mount the Windows partition to /mnt/win:
 ```console
 # mount /dev/[windows drive/partition] /mnt/win
 ```
-
-Edit the pacman mirrorlist by putting the closest region at the top of the file for faster downloads:
-```console
-# vim /etc/pacman.d/mirrorlist
-```
+Also mount additional drive now.
 
 Install the system.
 Don't forget to also install a text editor to edit config files while chrooted.
@@ -101,7 +103,7 @@ Chroot in to the new system:
 
 ## PART 2, THE NEW SYSTEM
 
-Set the time zone by creating a symlink:
+Set the time zone by creating a symlink with your local timezone "file":
 ```console
 # ln -sf /usr/share/zoneinfo/[Region]/[City] /etc/localtime
 ```
@@ -116,6 +118,12 @@ Edit /etc/locale.gen and uncomment the needed locales (mainly en_US.UTF-8 UTF-8)
 # vim /etc/locale.gen
 # locale-gen
 ```
+If you're not sure how to use vim:
+1. Type `/` and search for en_US.UTF-8 UTF-8.
+2. Press `Enter` and use the arrow keys to navigate to the front of the line.
+3. Press `x` to remove the comment #.
+4. Press `ZZ` (so capital Z twice) to save and exit vim.
+
 Create the locale config file:
 ```console
 # echo "LANG=en_US.UTF-8" > /etc/locale.conf
@@ -138,6 +146,11 @@ Add following lines to /etc/hosts:
 ::1		localhost
 127.0.1.1	[hostname].localdomain [hostname]
 ```
+If you're not sure how to write in vim:
+1. Press `i`.
+2. Type your text.
+3. Refer to previous steps to save and close.
+
 Replace 127.0.1.1 with the permanent IP if using a permanent IP.
 
 Create a root password:
@@ -162,11 +175,7 @@ Install sudo and edit the sudoers file to allow the wheel group to use sudo:
 # pacman -S sudo
 # visudo
 ```
-To add the default user directories specified by the XDG Base Directory specifications:
-```console
-# pacman -S xdg-user-dirs
-# xdg-user-dirs-update
-```
+Look for the line that reads `Let users in group wheel edit all commands`, uncomment the line below that.
 
 Set up dhcpcd so that internet access is available on reboot:
 ```console
@@ -179,6 +188,7 @@ Install grub as a bootloader.
 # grub-install /dev/sdX
 # grub-mkconfig -o /boot/grub/grub.cfg
 ```
+This will fail if you didn't set the partition label correctly.
 
 Shut down the system and remove the install media.
 ```console
@@ -186,7 +196,7 @@ Shut down the system and remove the install media.
 # shutdown now
 ```
 
-## PART 3, AFTER INSTALLATION
+## PART 3, AFTER INSTALLATION (OPTINAL)
 
 Log in to the new system using the previously created user account.
 
