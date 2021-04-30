@@ -196,7 +196,7 @@ Shut down the system and remove the install media.
 # shutdown now
 ```
 
-## PART 3, AFTER INSTALLATION (OPTINAL)
+## PART 3, AFTER INSTALLATION (OPTIONAL)
 
 Log in to the new system using the previously created user account.
 
